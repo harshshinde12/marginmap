@@ -22,6 +22,7 @@ from app.config import (
     get_support_rate_pct,
     get_ui_assumptions,
 )
+from app.cache import cache_response
 from app.database import get_connection
 from app.phase2 import (
     BAND_CASE_SQL,
@@ -104,6 +105,7 @@ def assumptions():
 
 
 @app.get("/summary")
+@cache_response
 def summary():
     conn = get_connection()
     row = conn.execute(
@@ -132,6 +134,7 @@ def summary():
 
 
 @app.get("/reconciliation")
+@cache_response
 def reconciliation():
     """Prove allocations reconcile on real data, bypassing nothing hidden."""
     conn = get_connection()
@@ -182,6 +185,7 @@ def reconciliation():
 
 
 @app.get("/profitability")
+@cache_response
 def profitability(
     group_by: str = Query(..., description="segment|category|sub_category|region|market|ship_mode|product|customer"),
     limit: int | None = Query(None, description="Max rows (default all; use with offset for product/customer)"),
@@ -233,6 +237,7 @@ def profitability(
 
 
 @app.get("/orders")
+@cache_response
 def list_orders(limit: int = 10, offset: int = 0, segment: str | None = None):
     cols = """[Row ID] AS row_id, [Order ID] AS order_id, Segment AS segment,
               Category AS category, Sales AS sales_original, sales_effective,
@@ -256,6 +261,7 @@ def list_orders(limit: int = 10, offset: int = 0, segment: str | None = None):
 
 
 @app.get("/orders/by-id/{order_id}")
+@cache_response
 def order_detail(order_id: str):
     conn = get_connection()
     rows = conn.execute(
@@ -276,6 +282,7 @@ def order_detail(order_id: str):
 
 # ---------------- Phase 2: cost-to-serve, cohorts, pricing ----------------
 
+@cache_response
 def _entity_rows(dimension: str) -> list[dict]:
     """Aggregate every entity of a dimension (no paging; used by cohorts/loss-makers)."""
     id_col, label_col = DIMENSIONS[dimension]
@@ -340,6 +347,7 @@ def phase2_assumptions():
 
 
 @app.get("/cost-to-serve")
+@cache_response
 def cost_to_serve(
     dimension: str = Query(..., description="customer|product"),
     limit: int = 1000,
@@ -385,6 +393,7 @@ def cost_to_serve(
 
 
 @app.get("/loss-makers")
+@cache_response
 def loss_makers(
     dimension: str = Query(..., description="product|customer|region"),
     threshold: float = 0.0,
@@ -406,6 +415,7 @@ def loss_makers(
 
 
 @app.get("/discount-impact")
+@cache_response
 def discount_impact(group_by: str = Query(..., description="segment|category")):
     key = group_by.lower()
     if key not in ("segment", "category"):
@@ -463,6 +473,7 @@ def discount_impact(group_by: str = Query(..., description="segment|category")):
 
 
 @app.get("/elasticity")
+@cache_response
 def elasticity(group_by: str = Query(..., description="category|segment")):
     key = group_by.lower()
     if key not in ("category", "segment"):
@@ -652,6 +663,7 @@ def _month_agg(conn, yyyymm: str) -> dict | None:
 
 
 @app.get("/variance")
+@cache_response
 def variance(month: str | None = Query(None, description="YYYY-MM; default latest month in data")):
     conn = get_connection()
     latest = conn.execute(f"SELECT MAX({MONTH_SQL}) FROM order_margins").fetchone()[0]
@@ -753,6 +765,7 @@ def ui_assumptions():
 
 
 @app.get("/months")
+@cache_response
 def months():
     conn = get_connection()
     rows = conn.execute(
@@ -765,6 +778,7 @@ def months():
 
 
 @app.get("/kpi-trend")
+@cache_response
 def kpi_trend(months_n: int = 6):
     if not (1 <= months_n <= 48):
         raise HTTPException(400, "months_n must be within [1, 48]")
@@ -808,6 +822,7 @@ HEATMAP_COLS = {
 
 
 @app.get("/margin-heatmap")
+@cache_response
 def margin_heatmap(
     rows: str = Query("category", description="category|product"),
     cols: str = Query("segment", description="segment|region"),
@@ -872,6 +887,7 @@ def margin_heatmap(
 
 
 @app.get("/entity-trend")
+@cache_response
 def entity_trend(
     dimension: str = Query(..., description="product|customer|region|segment|category"),
     id: str = Query(..., description="Entity id value (e.g. Product ID)"),
@@ -905,6 +921,7 @@ def entity_trend(
 
 
 @app.get("/cost-structure")
+@cache_response
 def cost_structure():
     """Totals + ship-mode freight split for the donut/Sankey (reconciled to /summary)."""
     conn = get_connection()
@@ -943,6 +960,7 @@ def cost_structure():
 
 
 @app.get("/treemap")
+@cache_response
 def treemap():
     """Category -> Sub-Category revenue treemap data (D20, reconciled to summary)."""
     conn = get_connection()
@@ -995,6 +1013,7 @@ def _freq_band(n_lines: int) -> str:
 
 
 @app.get("/frequency-heatmap")
+@cache_response
 def frequency_heatmap():
     """Customer order-frequency x cost-tier heatmap (D21, reconciled to summary)."""
     conn = get_connection()
@@ -1043,6 +1062,7 @@ def frequency_heatmap():
 
 
 @app.get("/drill-tree")
+@cache_response
 def drill_tree(
     category: str | None = None,
     sub_category: str | None = None,

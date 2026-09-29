@@ -8,3 +8,7 @@ services:
     envVars:
       - key: MARGINMAP_SUPPORT_RATE_PCT
         value: 0.05
+      # Supabase Postgres (Session Pooler URL). sync:false keeps the secret
+      # out of git — paste it in the Render dashboard (Environment tab).
+      - key: DATABASE_URL
+        sync: false

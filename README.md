@@ -58,7 +58,36 @@ npm run dev                   # http://127.0.0.1:5173
 ```
 
 Env vars: `MARGINMAP_SUPPORT_RATE_PCT` (backend, default `0.05` — re-run ingest after changing);
-`VITE_API_URL` (frontend build-time API base URL).
+`VITE_API_URL` (frontend build-time API base URL);
+`DATABASE_URL` (backend — unset = local SQLite; set = Supabase Postgres, see below).
+
+## Supabase (Postgres) backend
+
+Supabase hosts the **database only** — the FastAPI service stays on Render and the
+Vite build stays a static site; both keep working unchanged. The API speaks to
+either SQLite or Postgres through a thin compat shim (`backend/app/database.py`:
+`?`→`%s`, `[brackets]`→`"quotes"`, `datetime('now')`→`CURRENT_TIMESTAMP`,
+`AUTOINCREMENT`→identity PK; rows behave like `sqlite3.Row`). No query logic changed.
+
+```powershell
+# 1. Supabase dashboard -> Settings -> Database -> Connection string
+#    -> Session Pooler: copy the URL, insert your DB password
+#    (URL-encode special chars), keep ?sslmode=require.
+# 2. From backend/ with a fresh local DB:
+Set-Location backend
+python -m app.ingest
+$env:DATABASE_URL = "postgresql://postgres.<ref>:<pwd>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require"
+python -m app.load_supabase   # rebuilds order_margins, merges flags, verifies counts + sums
+# 3. Render dashboard -> marginmap-api -> Environment -> add the same
+#    DATABASE_URL (render.yaml declares it sync:false so it never lands in git)
+#    -> redeploy. Verify /health and /reconciliation:
+#    sales $11,823,482 / gross $1,349,557 (11.4%) / net -$659,784 (-5.6%).
+```
+
+Notes: session pooler (port 6543) avoids prepared-statement quirks — use it, not
+the transaction pooler. Keep the DB password and any `sb_secret_*` key out of git
+and chat; rotate a key in Supabase Settings -> API Keys if it was ever exposed.
+Local dev and tests simply leave `DATABASE_URL` unset (SQLite fallback).
 
 ## Tests
 

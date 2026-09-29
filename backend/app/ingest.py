@@ -84,6 +84,10 @@ def main() -> dict:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_margins_category ON order_margins(Category)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_margins_region ON order_margins(Region)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_margins_order ON order_margins([Order ID])")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_margins_product ON order_margins([Product ID])")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_margins_customer ON order_margins([Customer ID])")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_margins_subcat ON order_margins([Sub-Category])")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_margins_order_date ON order_margins([Order Date])")
     # Flags table survives re-ingest (created once, never dropped).
     conn.execute(
         """CREATE TABLE IF NOT EXISTS flags (
