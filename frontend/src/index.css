@@ -2,8 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+  --text-4xl: 40px;
+  --tooltip-bg: #FFFFFF;
+  --grid-stroke: #94A3B8;
+}
+
 body {
   @apply bg-paper text-ink font-body;
+  line-height: 1.4;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every dollar / percent value aligns vertically (Linear/Stripe feel). */
+.tabular-nums,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .dark body,
@@ -13,11 +37,85 @@ body {
 
 .dark #root {
   @apply bg-navy text-slate-100;
+  --tooltip-bg: #1E293B;
 }
 
 /* 150-200ms hover transitions on interactive rows (D1) */
 .row-hover {
-  @apply transition-all duration-175 hover:-translate-y-px hover:shadow-md;
+  @apply transition-all duration-175 hover:bg-slate-50 dark:hover:bg-navyCardHover;
+}
+
+/* ---- Custom range slider: thin track, neon fill up to thumb, ring on focus ---- */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  background:
+    linear-gradient(to right, #3B82F6 0%, #3B82F6 var(--fill, 50%), rgba(59, 130, 246, 0.15) var(--fill, 50%));
+  outline: none;
+  cursor: pointer;
+}
+.dark input[type='range'] {
+  background:
+    linear-gradient(to right, #3B82F6 0%, #3B82F6 var(--fill, 50%), rgba(59, 130, 246, 0.22) var(--fill, 50%));
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #3B82F6;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 150ms;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+}
+input[type='range']:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px rgba(59, 130, 246, 0.4);
+}
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #3B82F6;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(59, 130, 246, 0.15);
+}
+input[type='range']::-moz-range-progress {
+  height: 4px;
+  border-radius: 9999px;
+  background: #3B82F6;
+}
+.dark input[type='range']::-webkit-slider-thumb {
+  border-color: #0F172A;
+}
+.dark input[type='range']::-moz-range-thumb {
+  border-color: #0F172A;
+}
+
+/* Skeleton pulse tuned to card dimensions — shown only while genuinely loading. */
+.skeleton-pulse {
+  @apply animate-pulse rounded-lg bg-slate-200/70 dark:bg-slate-800;
+}
+
+/* Thin scrollbars keep dense tables calm. */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-300 dark:bg-slate-700;
 }
 
 @media print {

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
 import type { Summary } from './api';
-import { DeltaBadge, LoadingBlock, MetricBox, Sparkline, money, pct } from './components';
+import { DeltaBadge, KpiSkeleton, MetricBox, Sparkline, money, pct } from './components';
 
 export function KpiBanner({
   lossDimension,
@@ -30,7 +30,7 @@ export function KpiBanner({
     enabled: isRegion,
   });
   const total = isRegion ? regTotal.data?.rows.length : ctsTotal.data?.n_entities;
-  if (summary.isLoading) return <LoadingBlock />;
+  if (summary.isLoading) return <KpiSkeleton />;
   if (summary.error || !summary.data) return null;
   const d = summary.data;
   const pts = trend.data?.points ?? [];
@@ -75,7 +75,7 @@ export function KpiBanner({
           ? `${loss.data.n_loss_makers.toLocaleString()} / ${total.toLocaleString()}`
           : '…',
       valueClass: 'text-ink dark:text-white',
-      pill: <span className="text-xs text-slate-400 dark:text-[13px]">net &lt; $0, all time</span>,
+      pill: <span className="text-xs text-slate-400">net &lt; $0, all time</span>,
       spark: <Sparkline values={netD} />,
       sub: 'monthly net $ context',
     },
@@ -83,16 +83,16 @@ export function KpiBanner({
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map((k) => (
-        <MetricBox key={k.label}>
-          <div className="font-display text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
+        <MetricBox key={k.label} className="hover:-translate-y-0.5 p-5">
+          <div className="font-display text-xs font-semibold uppercase tracking-widest opacity-60">
             {k.label}
           </div>
-          <div className={`mt-1 font-display text-2xl font-bold ${k.valueClass}`}>{k.value}</div>
+          <div className={`mt-1 font-display text-4xl font-bold tabular-nums leading-none tracking-tight ${k.valueClass}`}>{k.value}</div>
           <div className="mt-1 flex items-center justify-between gap-2">
             {k.pill}
             {k.spark}
           </div>
-          <div className="mt-1 text-[11px] text-slate-400 dark:text-[13px]">{k.sub}</div>
+          <div className="mt-1.5 text-xs leading-none opacity-50">{k.sub}</div>
         </MetricBox>
       ))}
     </div>

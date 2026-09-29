@@ -16,7 +16,7 @@ import {
 import type { ExportFn } from '../App';
 import { api } from '../api';
 import { formatCurrency, formatPct } from '../format';
-import { Card, ErrorBlock, LoadingBlock, RichTooltip, Sparkline, downloadCSV, money } from '../components';
+import { Card, ErrorBlock, ChartSkeleton, RichTooltip, Sparkline, AXIS_PROPS, COST_COLORS, GRID_PROPS, REF_LINE_PROPS, TICK_PROPS, downloadCSV, marginCellBg, money } from '../components';
 import { useQuery as useQ } from '@tanstack/react-query';
 
 export function Overview({ registerExport }: { registerExport: (fn: ExportFn) => void }) {
@@ -36,7 +36,7 @@ export function Overview({ registerExport }: { registerExport: (fn: ExportFn) =>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Profit waterfall — list price to net (display-only)">
           {cost.isLoading ? (
-            <LoadingBlock />
+            <ChartSkeleton height={280} />
           ) : cost.error || !cost.data ? (
             <ErrorBlock message={String(cost.error)} />
           ) : (
@@ -45,7 +45,7 @@ export function Overview({ registerExport }: { registerExport: (fn: ExportFn) =>
         </Card>
         <Card title="Cost structure — buckets as % of effective revenue">
           {cost.isLoading ? (
-            <LoadingBlock />
+            <ChartSkeleton height={220} />
           ) : cost.error || !cost.data ? (
             <ErrorBlock message={String(cost.error)} />
           ) : (
@@ -61,17 +61,17 @@ export function Overview({ registerExport }: { registerExport: (fn: ExportFn) =>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Net margin % by category">
           {cat.isLoading ? (
-            <LoadingBlock />
+            <ChartSkeleton height={260} />
           ) : cat.error || !cat.data ? (
             <ErrorBlock message={String(cat.error)} />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={cat.data.rows} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`} />
-                <YAxis type="category" dataKey="label" width={120} />
+                <CartesianGrid {...GRID_PROPS} />
+                <XAxis type="number" tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+                <YAxis type="category" dataKey="label" width={120} tick={TICK_PROPS} {...AXIS_PROPS} />
                 <Tooltip content={<CatTip />} />
-                <ReferenceLine x={0} stroke="#0f172a" />
+                <ReferenceLine x={0} {...REF_LINE_PROPS} />
                 <Bar dataKey="net_pct" name="Net margin %">
                   {cat.data.rows.map((r) => (
                     <Cell key={r.grp} fill={r.net_pct >= 0 ? '#10B981' : '#EF4444'} />
@@ -83,7 +83,7 @@ export function Overview({ registerExport }: { registerExport: (fn: ExportFn) =>
         </Card>
         <Card title="Net margin by region (USD)">
           {reg.isLoading ? (
-            <LoadingBlock />
+            <ChartSkeleton height={260} />
           ) : reg.error || !reg.data ? (
             <ErrorBlock message={String(reg.error)} />
           ) : reg.data.rows.length === 0 ? (
@@ -91,11 +91,11 @@ export function Overview({ registerExport }: { registerExport: (fn: ExportFn) =>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={reg.data.rows.slice(0, 12)} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(v: number) => formatCurrency(v)} />
-                <YAxis type="category" dataKey="label" width={130} />
+                <CartesianGrid {...GRID_PROPS} />
+                <XAxis type="number" tickFormatter={(v: number) => formatCurrency(v)} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+                <YAxis type="category" dataKey="label" width={130} tick={TICK_PROPS} {...AXIS_PROPS} />
                 <Tooltip content={<CatTip />} />
-                <ReferenceLine x={0} stroke="#0f172a" />
+                <ReferenceLine x={0} {...REF_LINE_PROPS} />
                 <Bar dataKey="net" name="Net margin">
                   {reg.data.rows.slice(0, 12).map((r) => (
                     <Cell key={r.grp} fill={r.net >= 0 ? '#10B981' : '#EF4444'} />
@@ -151,19 +151,19 @@ function Waterfall({ totals }: { totals: { revenue: number; cogs: number; shippi
     <div>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={data} margin={{ top: 5, right: 10, left: 70, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" interval={0} angle={-45} dy={14} height={80} tick={{ fontSize: 10 }} />
-          <YAxis tickFormatter={(v: number) => compactMoney(v)} width={80} />
+          <CartesianGrid {...GRID_PROPS} />
+          <XAxis dataKey="name" interval={0} angle={-45} dy={14} height={80} tick={TICK_PROPS} {...AXIS_PROPS} />
+          <YAxis tickFormatter={(v: number) => compactMoney(v)} width={80} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={6} />
           <Tooltip content={<FallTip />} />
           <Bar dataKey="base" stackId="w" fill="transparent" isAnimationActive={false} />
           <Bar dataKey="size" stackId="w" name="Step">
             {data.map((s) => (
-              <Cell key={s.name} fill={s.total ? (s.run >= 0 ? '#3B82F6' : '#EF4444') : s.delta >= 0 ? '#10B981' : '#EF4444'} />
+              <Cell key={s.name} fill={s.total ? (s.run >= 0 ? '#10B981' : '#EF4444') : s.delta >= 0 ? '#10B981' : '#EF4444'} />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="mt-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
         List price = Σ sales_effective / (1 − Discount), display-only (D6). Final Net {money(totals.net)} reconciles to
         the Phase 1 summary.
       </div>
@@ -174,10 +174,10 @@ function Waterfall({ totals }: { totals: { revenue: number; cogs: number; shippi
 function FallTip(props: { active?: boolean; payload?: { payload: { name: string; delta: number; run: number } }[] }) {  if (!props.active || !props.payload?.length) return null;
   const s = props.payload[0].payload;
   return (
-    <div className="rounded border border-slate-200 bg-white p-2 text-xs shadow-lg dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100">
-      <div className="mb-1 font-semibold">{s.name}</div>
-      <div className="flex justify-between gap-4"><span className="text-slate-500 dark:text-slate-400">Step</span><span className="font-mono font-semibold">{money(s.delta)}</span></div>
-      <div className="flex justify-between gap-4"><span className="text-slate-500 dark:text-slate-400">Running total</span><span className="font-mono font-semibold">{money(s.run)}</span></div>
+    <div className="min-w-[180px] rounded-xl border border-black/5 bg-white px-3 py-2 text-xs shadow-card-hover dark:border-white/10 dark:bg-navyCard dark:shadow-card-hover-dark dark:text-slate-100">
+      <div className="mb-1 font-display font-semibold text-ink dark:text-white">{s.name}</div>
+      <div className="flex justify-between gap-4 py-px"><span className="text-slate-500 dark:text-slate-400">Step</span><span className="font-mono font-semibold tabular-nums">{money(s.delta)}</span></div>
+      <div className="flex justify-between gap-4 py-px"><span className="text-slate-500 dark:text-slate-400">Running total</span><span className="font-mono font-semibold tabular-nums">{money(s.run)}</span></div>
     </div>
   );
 }
@@ -190,7 +190,7 @@ function Donut({ totals }: { totals: { revenue: number; cogs: number; shipping: 
     { name: 'Support', value: totals.support, pct: (totals.support / rev) * 100 },
     { name: 'Returns', value: totals.ret, pct: (totals.ret / rev) * 100 },
   ];
-  const colors = ['#3B82F6', '#8B5CF6', '#f59e0b', '#64748b'];
+  const colors = [COST_COLORS.freightHi, COST_COLORS.freight, COST_COLORS.support, COST_COLORS.returns];
   const net = totals.net;
   const [active, setActive] = useState<number | null>(null);
   const a = active !== null ? slices[active] : null;
@@ -217,24 +217,24 @@ function Donut({ totals }: { totals: { revenue: number; cogs: number; shipping: 
         </ResponsiveContainer>
         {a && (
           <div
-            className="absolute right-2 top-2 z-50 rounded border border-slate-200 bg-white p-3 text-xs shadow-lg dark:border-slate-600 dark:bg-slate-900"
-            style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.18)', pointerEvents: 'none' }}
+            className="absolute right-2 top-2 z-50 min-w-[170px] rounded-xl border border-black/5 bg-white px-3 py-2 text-xs shadow-card-hover dark:border-white/10 dark:bg-navyCard dark:shadow-card-hover-dark"
+            style={{ pointerEvents: 'none' }}
           >
-            <div className="mb-1 font-semibold text-ink dark:text-white">{a.name}</div>
-            <div className="flex justify-between gap-4">
+            <div className="mb-1 font-display font-semibold text-ink dark:text-white">{a.name}</div>
+            <div className="flex justify-between gap-4 py-px">
               <span className="text-slate-500 dark:text-slate-400">Cost $</span>
-              <span className="font-mono font-semibold">{money(a.value)}</span>
+              <span className="font-mono font-semibold tabular-nums">{money(a.value)}</span>
             </div>
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-4 py-px">
               <span className="text-slate-500 dark:text-slate-400">% of revenue</span>
-              <span className="font-mono font-semibold">{a.pct.toFixed(1)}%</span>
+              <span className="font-mono font-semibold tabular-nums">{a.pct.toFixed(1)}%</span>
             </div>
           </div>
         )}
         <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Net margin</div>
-          <div className={`font-display text-lg font-bold ${net < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{money(net)}</div>
-          <div className={`font-mono text-xs font-medium ${net < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-500 dark:text-emerald-400'}`}>
+          <div className="text-xs font-semibold uppercase tracking-widest opacity-60 text-slate-500 dark:text-slate-300">Net margin</div>
+          <div className={`mt-0.5 font-display text-lg font-bold tabular-nums ${net < 0 ? 'text-neg' : 'text-pos'}`}>{money(net)}</div>
+          <div className={`font-mono text-xs font-medium tabular-nums ${net < 0 ? 'text-neg' : 'text-pos'}`}>
             {formatPct(net / (totals.revenue || 1))}
           </div>
         </div>
@@ -243,7 +243,7 @@ function Donut({ totals }: { totals: { revenue: number; cogs: number; shipping: 
         {slices.map((s, i) => (
           <div
             key={s.name}
-            className="rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900"
+            className="rounded-lg border border-black/5 bg-slate-50/60 p-2 dark:border-white/5 dark:bg-navyCardHover"
           >
             <div className="flex items-center gap-1.5">
               <span
@@ -252,8 +252,8 @@ function Donut({ totals }: { totals: { revenue: number; cogs: number; shipping: 
               />
               <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{s.name}</span>
             </div>
-            <div className="mt-1 font-mono text-sm font-semibold text-ink dark:text-white">{s.pct.toFixed(1)}% <span className="font-normal text-slate-500 dark:text-slate-400">of revenue</span></div>
-            <div className="overflow-visible whitespace-nowrap font-display text-sm font-bold text-slate-900 dark:text-white">{money(s.value)}</div>
+            <div className="mt-1 font-mono text-sm font-semibold tabular-nums text-ink dark:text-white">{s.pct.toFixed(1)}% <span className="font-body font-normal text-slate-500 dark:text-slate-400">of revenue</span></div>
+            <div className="overflow-visible whitespace-nowrap font-mono text-sm font-bold tabular-nums text-slate-900 dark:text-white">{money(s.value)}</div>
           </div>
         ))}
       </div>
@@ -264,7 +264,12 @@ function Donut({ totals }: { totals: { revenue: number; cogs: number; shipping: 
 function DriverCards({ kind }: { kind: 'drivers' | 'drainers' }) {
   const loss = useQ({ queryKey: ['loss-product-200'], queryFn: () => api.lossMakers('product', 200) });
   const prof = useQ({ queryKey: ['prof-product-all'], queryFn: () => api.profitability('product', 20000) });
-  if (loss.isLoading || prof.isLoading) return <LoadingBlock />;
+  if (loss.isLoading || prof.isLoading)
+    return (
+      <Card title={kind === 'drivers' ? 'Top 3 profit drivers' : 'Top 3 margin drainers'}>
+        <ChartSkeleton height={132} />
+      </Card>
+    );
   if (loss.error || prof.error || !loss.data || !prof.data)
     return <ErrorBlock message={String(loss.error ?? prof.error)} />;
   const items =
@@ -278,7 +283,7 @@ function DriverCards({ kind }: { kind: 'drivers' | 'drainers' }) {
           <DriverRow key={it.id} id={it.id} label={it.label} net={it.net} />
         ))}
       </div>
-      <div className="mt-2 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+      <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
         Sparklines trace monthly net $ trend direction (green = ends higher, red = ends lower) — not the sign of the $ value.
       </div>
     </Card>
@@ -289,47 +294,44 @@ function DriverRow({ id, label, net }: { id: string; label: string; net: number 
   const trend = useQ({ queryKey: ['entity-trend', 'product', id], queryFn: () => api.entityTrend('product', id) });
   const vals = (trend.data?.points ?? []).map((p) => p.net);
   return (
-    <div className="row-hover flex items-center gap-3 rounded border border-slate-100 p-2 dark:border-slate-700">
+    <div className="row-hover flex items-center gap-3 rounded-lg border border-black/5 bg-slate-50/60 p-2 dark:border-white/5 dark:bg-white/[0.02]">
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{label}</div>
-        <div className="text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">{id}</div>
+        <div className="font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">{id}</div>
       </div>
       <Sparkline values={vals} width={100} height={28} />
-      <div className={`font-display text-sm font-bold ${net < 0 ? 'text-neg' : 'text-pos'}`}>{money(net)}</div>
+      <div className={`font-mono text-sm font-bold tabular-nums ${net < 0 ? 'text-neg' : 'text-pos'}`}>{money(net)}</div>
     </div>
   );
 }
 
 function TreemapCard() {
   const tree = useQ({ queryKey: ['treemap'], queryFn: api.treemap });
-  if (tree.isLoading) return <Card title="Revenue treemap — Category → Sub-Category (D20)"><LoadingBlock /></Card>;
+  if (tree.isLoading) return <Card title="Revenue treemap — Category → Sub-Category (D20)"><ChartSkeleton height={180} /></Card>;
   if (tree.error || !tree.data)
     return <Card title="Revenue treemap — Category → Sub-Category (D20)"><ErrorBlock message={String(tree.error)} /></Card>;
   const totalRev = tree.data.nodes.reduce((s, n) => s + (n.revenue || 0), 0) || 1;
-  const bg = (v: number) => {
-    const t = Math.min(1, Math.abs(v) / 0.3);
-    return v >= 0 ? `rgba(16,185,129,${0.25 + 0.55 * t})` : `rgba(239,68,68,${0.25 + 0.55 * t})`;
-  };
   return (
     <Card title="Revenue treemap — Category → Sub-Category (sizes = effective revenue, color = net %)">
       <div className="flex flex-col gap-2 md:flex-row">
         {tree.data.nodes.map((c) => (
-          <div key={c.name} className="min-w-0 flex-1 rounded-lg border border-slate-200 p-2 dark:border-slate-700" style={{ flexGrow: Math.max(1, c.revenue / totalRev) * 10 }}>
+          <div key={c.name} className="min-w-0 flex-1 rounded-lg border border-black/5 bg-slate-50/60 p-2 dark:border-white/5 dark:bg-white/[0.02]" style={{ flexGrow: Math.max(1, c.revenue / totalRev) * 10 }}>
             <div className="mb-1 truncate text-sm font-bold" title={`${c.name} — ${money(c.revenue)} revenue, ${money(c.net)} net (${formatPct(c.net_pct)})`}>
-              {c.name} <span className="font-normal text-slate-500 dark:text-slate-400">({money(c.net)})</span>
+              {c.name} <span className="font-mono font-normal tabular-nums text-slate-500 dark:text-slate-400">({money(c.net)})</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {(c.children ?? []).map((k) => {
                 const w = Math.max(8, (k.revenue / (c.revenue || 1)) * 100);
+                const light = Math.abs(k.net_pct) < 0.1;
                 return (
                   <div
                     key={k.name}
-                    className="rounded p-1.5 text-[11px] leading-tight text-white"
-                    style={{ background: bg(k.net_pct), width: `${w}%`, minWidth: 90, flexGrow: 1 }}
+                    className={`rounded-lg p-1.5 text-xs leading-tight ${light ? 'text-ink dark:text-white' : 'text-white'}`}
+                    style={{ background: marginCellBg(k.net_pct), width: `${w}%`, minWidth: 90, flexGrow: 1 }}
                     title={`${k.name} — revenue ${money(k.revenue)}, net ${money(k.net)} (${formatPct(k.net_pct)}), ${k.n_lines} lines`}
                   >
                     <div className="truncate font-semibold">{k.name}</div>
-                    <div className="font-mono">{formatPct(k.net_pct)}</div>
+                    <div className="font-mono tabular-nums">{formatPct(k.net_pct)}</div>
                   </div>
                 );
               })}
@@ -337,7 +339,7 @@ function TreemapCard() {
           </div>
         ))}
       </div>
-      <div className="mt-2 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+      <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
         Sizes by effective revenue, colors by net margin % (emerald positive, red negative). Σ nets {money(tree.data.total_net_cells)} vs
         summary {money(tree.data.summary_net)} — {tree.data.reconciles ? 'reconciles ✓' : 'MISMATCH'} (D20).
       </div>

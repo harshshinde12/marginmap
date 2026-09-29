@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   ReferenceLine,
   ResponsiveContainer,
@@ -19,7 +20,7 @@ import { api } from '../api';
 import type { CohortRow } from '../api';
 import { cohortColor, costTier, formatCurrency, formatPct, tertileCutoffs } from '../format';
 import type { CostTier } from '../format';
-import { Card, EmptyBlock, ErrorBlock, LoadingBlock, MarginBar, RichTooltip, BADGE_NEG, BADGE_POS, BADGE_WARN, downloadCSV, money, pct } from '../components';
+import { Card, EmptyBlock, ErrorBlock, ChartSkeleton, MarginBar, RichTooltip, AXIS_PROPS, ChartTooltip, COST_COLORS, GRID_PROPS, REF_LINE_PROPS, TICK_PROPS, BADGE_NEG, BADGE_POS, BADGE_WARN, downloadCSV, marginCellBg, money, pct } from '../components';
 
 const COHORTS = [
   'high-revenue/high-margin',
@@ -76,7 +77,22 @@ export function Cohorts({ registerExport }: { registerExport: (fn: ExportFn) => 
     });
   }, [registerExport, data]);
 
-  if (isLoading) return <LoadingBlock />;
+  if (isLoading)
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="rounded-xl border border-black/5 bg-white p-3 shadow-card dark:border-white/5 dark:bg-navyCard">
+              <div className="skeleton-pulse h-4 w-2/3" />
+              <div className="skeleton-pulse mt-2 h-7 w-1/3" />
+            </div>
+          ))}
+        </div>
+        <Card title="Loading cohorts…">
+          <ChartSkeleton height={420} />
+        </Card>
+      </div>
+    );
   if (error || !data) return <ErrorBlock message={String(error)} />;
   if (!Array.isArray(data.rows) || data.rows.length === 0) return <EmptyBlock message="No cohort data." />;
   return <CohortBody data={data} costQuery={cost} tiers={tiers} tierFilter={tierFilter} setTierFilter={setTierFilter} />;
@@ -124,13 +140,13 @@ function CohortBody({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         {COHORTS.map((c) => (
-          <div key={c} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div key={c} className="rounded-xl border border-black/5 bg-white p-3 shadow-card transition-all duration-175 hover:border-neon/30 hover:shadow-card-hover dark:border-white/5 dark:bg-navyCard dark:hover:border-neon/30">
             <div className="font-display text-sm font-bold text-ink dark:text-white">{display(c)}</div>
-            <div className="text-[11px] text-slate-400 dark:text-[13px]">{c}</div>
-            <div className="mt-1 font-display text-xl font-bold" style={{ color: cohortColor(c) }}>
+            <div className="font-mono text-xs tabular-nums text-slate-400">{c}</div>
+            <div className="mt-1 font-display text-xl font-bold tabular-nums" style={{ color: cohortColor(c) }}>
               {(countsMap[c] ?? 0).toLocaleString()}
             </div>
-            <div className="text-[11px] text-slate-500 dark:text-[13px] dark:text-slate-400">customers in full {(data.n_entities ?? 0).toLocaleString()} set</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">customers in full {(data.n_entities ?? 0).toLocaleString()} set</div>
           </div>
         ))}
       </div>
@@ -157,13 +173,13 @@ function CohortBody({
       >
         <ResponsiveContainer width="100%" height={420}>
           <ScatterChart>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" dataKey="revenue" name="Revenue" tickFormatter={(v: number) => formatCurrency(v)} />
-            <YAxis type="number" dataKey="net_pct" name="Net %" tickFormatter={(v: number) => formatPct(v)} />
+            <CartesianGrid {...GRID_PROPS} />
+            <XAxis type="number" dataKey="revenue" name="Revenue" tickFormatter={(v: number) => formatCurrency(v)} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={6} />
+            <YAxis type="number" dataKey="net_pct" name="Net %" tickFormatter={(v: number) => formatPct(v)} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={6} />
             <ZAxis type="number" dataKey="n_lines" name="Lines" />
             <Tooltip content={<CohortTip />} />
-            <ReferenceLine x={data.median_revenue} stroke="#0f172a" strokeDasharray="4 4" />
-            <ReferenceLine y={data.median_net_pct} stroke="#0f172a" strokeDasharray="4 4" />
+            <ReferenceLine x={data.median_revenue} {...REF_LINE_PROPS} />
+            <ReferenceLine y={data.median_net_pct} {...REF_LINE_PROPS} />
             {COHORTS.map((c) => (
               <Scatter key={c} name={`${display(c)} (${c})`} data={rows.filter((r) => r.cohort === c)} fill={cohortColor(c)} />
             ))}
@@ -177,7 +193,7 @@ function CohortBody({
             </span>
           ))}
         </div>
-        <div className="mt-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Relabel is cosmetic only — underlying median-split logic unchanged (D9). Cost tiers split the fetched
           500-customer set into tertiles of cost-to-serve (relative tiers, not fixed cutoffs).
         </div>
@@ -187,7 +203,7 @@ function CohortBody({
         <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white dark:bg-navyCard">
-              <tr className="text-left text-slate-500 dark:text-slate-400">
+              <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <th className="py-2 pr-3">Customer</th>
                 <th className="py-2 pr-3">Tier</th>
                 <th className="py-2 pr-3 text-right">Revenue</th>
@@ -204,10 +220,10 @@ function CohortBody({
                       {r.label}
                     </td>
                     <td className="py-1.5 pr-3">
-                      <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${TIER_STYLE[t]}`}>{t}</span>
+                      <span className={TIER_STYLE[t]}>{t}</span>
                     </td>
-                    <td className="py-1.5 pr-3 text-right font-mono">{money(r.revenue)}</td>
-                    <td className={`py-1.5 pr-3 text-right font-mono ${r.net < 0 ? 'text-neg' : 'text-pos'}`}>{money(r.net)}</td>
+                    <td className="py-1.5 pr-3 text-right font-mono tabular-nums">{money(r.revenue)}</td>
+                    <td className={`py-1.5 pr-3 text-right font-mono tabular-nums ${r.net < 0 ? 'text-neg' : 'text-pos'}`}>{money(r.net)}</td>
                     <td className="py-1.5 pr-3">
                       <MarginBar value={r.net_pct} maxAbs={maxAbsPct} />
                     </td>
@@ -217,12 +233,12 @@ function CohortBody({
             </tbody>
           </table>
         </div>
-        <div className="mt-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">Showing first 100 of {rows.length}. Green = Low, Yellow = Medium, Red = High cost-to-serve (relative tertiles).</div>
+        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Showing first 100 of {rows.length}. Green = Low, Yellow = Medium, Red = High cost-to-serve (relative tertiles).</div>
       </Card>
 
       <Card title="Cost-flow Sankey — gross revenue to net (ship-mode freight split, D10)">
         {cost.isLoading ? (
-          <LoadingBlock />
+          <ChartSkeleton height={300} />
         ) : cost.error || !cost.data ? (
           <ErrorBlock message={String(cost.error)} />
         ) : (
@@ -232,7 +248,7 @@ function CohortBody({
 
       <Card title="Cost-to-serve composition across ship modes (same data as Sankey)">
         {cost.isLoading ? (
-          <LoadingBlock />
+          <ChartSkeleton height={260} />
         ) : cost.error || !cost.data ? (
           <ErrorBlock message={String(cost.error)} />
         ) : (
@@ -257,12 +273,12 @@ function Sankey({ totals, buckets }: { totals: { revenue: number; cogs: number; 
   const H = 300;
   const rev = totals.revenue || 1;
   const flows = [
-    { name: 'COGS', value: totals.cogs, color: '#3B82F6' },
-    { name: 'Freight · Standard', value: buckets['Standard Class'] ?? 0, color: '#8B5CF6' },
-    { name: 'Freight · 1st+2nd', value: buckets['First+Second Class'] ?? 0, color: '#a78bfa' },
-    { name: 'Freight · Same Day', value: buckets['Same Day'] ?? 0, color: '#c4b5fd' },
-    { name: 'Support', value: totals.support, color: '#f59e0b' },
-    { name: 'Returns', value: totals.ret, color: '#64748b' },
+    { name: 'COGS', value: totals.cogs, color: COST_COLORS.cogs },
+    { name: 'Freight · Standard', value: buckets['Standard Class'] ?? 0, color: COST_COLORS.freightHi },
+    { name: 'Freight · 1st+2nd', value: buckets['First+Second Class'] ?? 0, color: COST_COLORS.freight },
+    { name: 'Freight · Same Day', value: buckets['Same Day'] ?? 0, color: COST_COLORS.freightLo },
+    { name: 'Support', value: totals.support, color: COST_COLORS.support },
+    { name: 'Returns', value: totals.ret, color: COST_COLORS.returns },
   ];
   const colX = [10, 340, 670];
   const colW = 220;
@@ -279,8 +295,8 @@ function Sankey({ totals, buckets }: { totals: { revenue: number; cogs: number; 
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-        <rect x={colX[0]} y={10} width={colW} height={H - 20} fill="none" stroke="#cbd5e1" />
-        <text x={colX[0] + 8} y={28} fontSize={12} fill="currentColor">
+        <rect x={colX[0]} y={10} width={colW} height={H - 20} fill="none" stroke="#94A3B8" strokeOpacity={0.3} rx={8} />
+        <text x={colX[0] + 8} y={28} fontSize={12} fill="currentColor" className="fill-slate-500">
           Gross Revenue {money(rev)}
         </text>
         {rows.map((r) => (
@@ -312,7 +328,7 @@ function Sankey({ totals, buckets }: { totals: { revenue: number; cogs: number; 
           Net {money(totals.net)} ({pct(totals.net / rev)})
         </text>
       </svg>
-      <div className="mt-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
         Freight split is a Ship Mode proxy, not a literal cost category (D10). Widths proportional to real dollars;
         hover any block for values.
       </div>
@@ -324,14 +340,18 @@ function ShipModeBars({ modes }: { modes: { mode: string; revenue: number; shipp
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={modes}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="mode" />
-        <YAxis tickFormatter={(v: number) => money(v)} />
-        <Tooltip formatter={(v: number) => money(v)} />
-        <Legend />
-        <Bar dataKey="revenue" name="Revenue" fill="#3B82F6" />
-        <Bar dataKey="shipping" name="Freight" fill="#8B5CF6" />
-        <Bar dataKey="net" name="Net" fill="#10B981" />
+        <CartesianGrid {...GRID_PROPS} />
+        <XAxis dataKey="mode" tick={TICK_PROPS} {...AXIS_PROPS} />
+        <YAxis tickFormatter={(v: number) => money(v)} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+        <Tooltip content={<ChartTooltip formatter={(v) => money(Number(v))} />} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="revenue" name="Revenue" fill={COST_COLORS.revenue} />
+        <Bar dataKey="shipping" name="Freight" fill={COST_COLORS.freight} />
+        <Bar dataKey="net" name="Net">
+          {modes.map((m) => (
+            <Cell key={m.mode} fill={m.net >= 0 ? '#10B981' : '#EF4444'} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );
@@ -339,23 +359,18 @@ function ShipModeBars({ modes }: { modes: { mode: string; revenue: number; shipp
 
 function FrequencyHeatmapCard() {
   const freq = useQuery({ queryKey: ['frequency-heatmap'], queryFn: api.frequencyHeatmap });
-  if (freq.isLoading) return <Card title="Order frequency × cost tier — customer heatmap (D21)"><LoadingBlock /></Card>;
+  if (freq.isLoading) return <Card title="Order frequency × cost tier — customer heatmap (D21)"><ChartSkeleton height={180} /></Card>;
   if (freq.error || !freq.data)
     return <Card title="Order frequency × cost tier — customer heatmap (D21)"><ErrorBlock message={String(freq.error)} /></Card>;
   const bands = freq.data.frequency_bands;
   const tiers = freq.data.tiers;
   const cellOf = (b: string, t: string) => freq.data!.cells.find((c) => c.freq_band === b && c.tier === t);
-  const bg = (v: number | undefined) => {
-    if (v === undefined) return undefined;
-    const k = Math.min(1, Math.abs(v) / 0.3);
-    return v >= 0 ? `rgba(16,185,129,${0.15 + 0.5 * k})` : `rgba(239,68,68,${0.15 + 0.5 * k})`;
-  };
   return (
     <Card title={`Order frequency × cost tier — ${freq.data.n_customers.toLocaleString()} customers (D21)`}>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr>
+            <tr className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               <th className="p-1 text-left">Frequency (lines/customer)</th>
               {tiers.map((t) => (
                 <th key={t} className="p-1 text-right">{t} cost</th>
@@ -371,8 +386,8 @@ function FrequencyHeatmapCard() {
                   return (
                     <td
                       key={t}
-                      className="p-1 text-right font-mono"
-                      style={{ background: bg(c?.avg_net_pct) }}
+                      className="p-1 text-right font-mono tabular-nums"
+                      style={{ background: marginCellBg(c?.avg_net_pct) }}
                       title={c ? `${c.n_customers} customers — net ${money(c.net)} (${pct(c.avg_net_pct)}) on ${money(c.revenue)}` : 'no customers'}
                     >
                       {c ? `${c.n_customers} · ${pct(c.avg_net_pct)}` : '—'}
@@ -384,7 +399,7 @@ function FrequencyHeatmapCard() {
           </tbody>
         </table>
       </div>
-      <div className="mt-2 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+      <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
         Frequency = order-line count per customer; tiers are tertiles of cost-to-serve
         (Low ≤ {money(freq.data.tier_thresholds.low_below)}, Medium ≤ {money(freq.data.tier_thresholds.medium_below)}).
         Σ cells {money(freq.data.total_net_cells)} vs summary {money(freq.data.summary_net)} —{' '}

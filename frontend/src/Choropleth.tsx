@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import geo from './assets/us-states.json';
-import { money, pct } from './components';
+import { MARGIN_SCALE_LEGEND, marginCellBg, money, pct } from './components';
 
 interface Feature {
   properties: { name: string };
@@ -45,7 +45,7 @@ export function Choropleth({ values }: Props) {
   const [hover, setHover] = useState<string | null>(null);
   const features = (geo as { features: Feature[] }).features;
 
-  const { paths, maxAbs, lo, hi } = useMemo(() => {
+  const { paths, lo, hi } = useMemo(() => {
     // Equirectangular fit over continental bounds.
     let minX = 1e9;
     let maxX = -1e9;
@@ -98,29 +98,29 @@ export function Choropleth({ values }: Props) {
 
   const color = (netPct: number | undefined) => {
     if (netPct === undefined) return '#E5E7EB';
-    const t = Math.min(1, Math.abs(netPct) / Math.max(maxAbs, 0.05));
-    // Emerald positive / red negative, darker = larger |margin| (fixed across themes, D1).
-    return netPct >= 0 ? `rgba(16,185,129,${0.25 + 0.75 * t})` : `rgba(239,68,68,${0.25 + 0.75 * t})`;
+    // Stepped 7-stop scale (red → neutral → emerald); darker = larger |margin| (D1).
+    return marginCellBg(netPct) ?? '#E5E7EB';
   };
 
   const hv = hover ? values.get(hover) : undefined;
   return (
     <div>
-      <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-3 w-10 rounded" style={{ background: 'linear-gradient(to right, rgba(239,68,68,0.25), rgba(239,68,68,1))' }} />
-          Loss {pct(lo)} → darker = larger loss
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-3 w-10 rounded" style={{ background: 'linear-gradient(to right, rgba(16,185,129,0.25), rgba(16,185,129,1))' }} />
-          Margin {pct(0)} → {pct(hi)} darker = higher margin
-        </span>
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+        {MARGIN_SCALE_LEGEND.map((s) => (
+          <span key={s.label} className="inline-flex items-center gap-1">
+            <span className="inline-block h-3 w-3 rounded" style={{ background: s.color }} />
+            {s.label}
+          </span>
+        ))}
         <span className="inline-flex items-center gap-1">
           <span className="inline-block h-3 w-3 rounded border border-slate-300" style={{ background: '#E5E7EB' }} />
           No data
         </span>
+        <span className="font-mono tabular-nums">
+          ({pct(lo)} … {pct(hi)} in view)
+        </span>
       </div>
-      <svg viewBox="0 0 960 560" className="w-full rounded border border-slate-200 dark:border-slate-700" role="img" aria-label="US state net margin choropleth">
+      <svg viewBox="0 0 960 560" className="w-full rounded-xl border border-black/5 dark:border-white/5" role="img" aria-label="US state net margin choropleth">
         {paths.map((p) => {
           const v = values.get(p.name);
           return (
@@ -139,13 +139,13 @@ export function Choropleth({ values }: Props) {
           );
         })}
       </svg>
-      <div className="mt-1 flex items-center justify-between text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+      <div className="mt-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
         <span>
           {hover ? (
             <>
               <strong className="text-ink dark:text-white">{hover}</strong>
               {hv ? (
-                <> — Revenue {money(hv.revenue)}, Net Margin {money(hv.net)} ({pct(hv.net_pct)})</>
+                <span className="font-mono tabular-nums"> — Revenue {money(hv.revenue)}, Net Margin {money(hv.net)} ({pct(hv.net_pct)})</span>
               ) : (
                 ' — no orders in the data'
               )}

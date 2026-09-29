@@ -5,7 +5,7 @@ import type { ExportFn } from '../App';
 import { LossRow, api } from '../api';
 import { paretoPoints, suggestionForTag, tagDistribution } from '../addon-helpers';
 import { formatCurrency, formatPct } from '../format';
-import { Card, Drawer, EmptyBlock, ErrorBlock, LoadingBlock, BADGE_NEG, BADGE_POS, BADGE_WARN, downloadCSV, money, pct, printPDF } from '../components';
+import { Card, Drawer, EmptyBlock, ErrorBlock, ChartSkeleton, TableSkeleton, BADGE_NEG, BADGE_POS, BADGE_WARN, AXIS_PROPS, ChartTooltip, GRID_PROPS, SELECT_CLASS, SUBTAB_ACTIVE, SUBTAB_INACTIVE, TICK_PROPS, downloadCSV, money, pct, printPDF } from '../components';
 
 const DRIVER_LABEL: Record<string, string> = {
   freight: 'freight',
@@ -58,13 +58,18 @@ export function LossMakers({
     registerExport(exportCSV);
   });
 
-  if (isLoading) return <LoadingBlock />;
+  if (isLoading)
+    return (
+      <Card title="Loading loss-makers…">
+        <TableSkeleton rows={6} />
+      </Card>
+    );
   if (error || !data) return <ErrorBlock message={String(error)} />;
   if (!Array.isArray(data.rows) || data.rows.length === 0) return <EmptyBlock message="No loss-makers. Good news." />;
   const open = openId ? data.rows.find((r) => r.eid === openId) ?? null : null;
   return (
     <div className="space-y-3">
-      <div className="no-print inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-900">
+      <div className="no-print inline-flex rounded-xl border border-black/5 bg-slate-100 p-1 dark:border-white/5 dark:bg-slate-900">
         {DIMS.map((d) => (
           <button
             key={d}
@@ -72,8 +77,8 @@ export function LossMakers({
               setDimension(d);
               setOpenId(null);
             }}
-            className={`rounded-md px-4 py-1.5 text-sm font-semibold capitalize transition-all duration-175 ${
-              dimension === d ? 'bg-white text-ink shadow dark:bg-neon dark:text-white' : 'text-slate-500 hover:text-ink dark:text-slate-400 dark:hover:text-white'
+            className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition-all duration-175 ${
+              dimension === d ? SUBTAB_ACTIVE : SUBTAB_INACTIVE
             }`}
           >
             {d === 'product' ? 'Products' : d === 'customer' ? 'Customers' : 'Regions'}
@@ -87,13 +92,14 @@ export function LossMakers({
             <select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
-              className="rounded border border-slate-300 px-1 py-1 dark:border-slate-600 dark:bg-slate-900"
+              className={SELECT_CLASS}
+              style={{ height: 32 }}
               title="Client-side sort"
             >
               <option value="net">Sort: Net $ loss</option>
               <option value="net_pct">Sort: Margin %</option>
             </select>
-            <button onClick={exportCSV} className="rounded border border-slate-300 px-2 py-1 font-semibold transition-all duration-175 hover:shadow dark:border-slate-600" title="Download these rows as CSV">
+            <button onClick={exportCSV} className="h-8 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold shadow-sm transition-all duration-175 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:border-slate-700 dark:hover:bg-navyCardHover" title="Download these rows as CSV">
               CSV ↓
             </button>
           </div>
@@ -101,44 +107,44 @@ export function LossMakers({
       >
         <div className="grid gap-3 md:grid-cols-2">
           {rows.map((r) => (
-            <article key={r.eid} className="row-hover rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <article key={r.eid} className="rounded-xl border border-black/5 bg-white p-3 shadow-card transition-all duration-175 hover:border-neon/30 hover:shadow-card-hover dark:border-white/5 dark:bg-navyCard dark:hover:border-neon/30">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="truncate font-medium" title={`${r.label} (${r.eid})`}>{r.label}</div>
-                  <div className="text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+                  <div className="truncate text-sm font-medium" title={`${r.label} (${r.eid})`}>{r.label}</div>
+                  <div className="font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
                     {r.eid} · revenue {formatCurrency(r.revenue)} · {r.n_lines} lines
                   </div>
                 </div>
-                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${BADGE_STYLE[r.status_badge] ?? ''}`}>
+                <span className={`shrink-0 ${BADGE_STYLE[r.status_badge] ?? ''}`}>
                   {r.status_badge}
                 </span>
               </div>
               <div className="mt-1 flex items-baseline gap-2">
-                <span className="font-display text-xl font-bold text-neg">{formatCurrency(r.net)}</span>
-                <span className="text-sm text-neg">{formatPct(r.net_pct)}</span>
+                <span className="font-display text-xl font-bold tabular-nums text-neg">{formatCurrency(r.net)}</span>
+                <span className="font-mono text-sm tabular-nums text-neg">{formatPct(r.net_pct)}</span>
               </div>
               <div className="mt-1 text-xs">
                 <span className="font-semibold">Top cause: </span>
                 {r.tags.length > 0 ? (
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">{r.tags[0].label}</span>
+                  <span className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-xs dark:bg-navyCardHover">{r.tags[0].label}</span>
                 ) : (
                   <span className="text-slate-400">none fired</span>
                 )}
                 {r.tags.length > 1 && <span className="ml-1 text-slate-400">+{r.tags.length - 1} more</span>}
               </div>
-              <div className="mt-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Biggest cost driver: {DRIVER_LABEL[r.driver ?? ''] ?? r.driver} ({formatPct(r.driver_share)} of cost-to-serve)
               </div>
               <div className="no-print mt-2 flex gap-2">
                 <button
                   onClick={() => setOpenId(r.eid)}
-                  className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm font-semibold transition-all duration-175 hover:shadow dark:border-slate-600"
+                  className="h-9 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-semibold shadow-sm transition-all duration-175 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:border-slate-700 dark:hover:bg-navyCardHover"
                 >
                   View Details
                 </button>
                 <button
                   onClick={() => onSimulate(dimension, r.eid)}
-                  className="flex-1 rounded bg-ink px-2 py-1.5 text-sm font-semibold text-white transition-all duration-175 hover:shadow dark:bg-neon"
+                  className="h-9 flex-1 rounded-lg bg-ink px-2 py-1.5 text-sm font-semibold text-white shadow-sm transition-all duration-175 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:bg-neon"
                   title="Open the real Pricing Simulator pre-loaded with this entity"
                 >
                   Simulate Price Hike →
@@ -147,7 +153,7 @@ export function LossMakers({
             </article>
           ))}
         </div>
-        <div className="mt-2 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
           Badges use quartile-derived cutoffs
           {cutoffs.data?.badge_cutoffs
             ? ` (Critical below ${formatPct(cutoffs.data.badge_cutoffs.critical_below)}, Moderate to ${formatPct(cutoffs.data.badge_cutoffs.moderate_below)}, Warning to 0%)`
@@ -196,28 +202,29 @@ function EntityDrawer({ row, dimension, onClose }: { row: LossRow; dimension: st
     <Drawer title={`${row.label} (${row.eid})`} onClose={onClose}>
       <div className="space-y-4 text-sm">
         <div>
-          <h4 className="font-semibold">Monthly history (net $)</h4>
+          <h4 className="text-sm font-semibold">Monthly history (net $)</h4>
           {trend.isLoading ? (
-            <LoadingBlock />
+            <ChartSkeleton height={180} />
           ) : trend.error || !trend.data ? (
             <ErrorBlock message={String(trend.error)} />
           ) : (
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={trend.data.points}>
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} interval={Math.max(0, Math.floor(trend.data.points.length / 6) - 1)} />
-                <YAxis tickFormatter={(v: number) => money(v)} width={60} />
-                <Tooltip formatter={(v: number) => money(v)} />
+                <CartesianGrid {...GRID_PROPS} />
+                <XAxis dataKey="month" tick={TICK_PROPS} {...AXIS_PROPS} interval={Math.max(0, Math.floor(trend.data.points.length / 6) - 1)} />
+                <YAxis tickFormatter={(v: number) => money(v)} width={60} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+                <Tooltip content={<ChartTooltip formatter={(v) => money(Number(v))} />} />
                 <Line type="monotone" dataKey="net" stroke="#EF4444" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           )}
         </div>
         <div>
-          <h4 className="font-semibold">Full cost breakdown</h4>
+          <h4 className="text-sm font-semibold">Full cost breakdown</h4>
           <CostTable row={row} />
         </div>
         <div>
-          <h4 className="font-semibold">Root-cause tags</h4>
+          <h4 className="text-sm font-semibold">Root-cause tags</h4>
           {row.tags.length === 0 ? (
             <div className="text-slate-500 dark:text-slate-400">No tags fire for this entity.</div>
           ) : (
@@ -236,20 +243,20 @@ function EntityDrawer({ row, dimension, onClose }: { row: LossRow; dimension: st
           )}
         </div>
         <div>
-          <h4 className="font-semibold">Flag for Review (persisted)</h4>
+          <h4 className="text-sm font-semibold">Flag for Review (persisted)</h4>
           <div className="flex gap-2">
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Note (optional)"
-              className="flex-1 rounded border border-slate-300 px-2 py-1.5 dark:border-slate-600 dark:bg-slate-900"
+              className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm transition-all duration-175 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:border-slate-700 dark:bg-navyCard"
             />
-            <button disabled={flagging} onClick={submitFlag} className="rounded bg-ink px-3 py-1.5 font-semibold text-white transition-all duration-175 hover:shadow dark:bg-neon">
+            <button disabled={flagging} onClick={submitFlag} className="h-9 rounded-lg bg-ink px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-all duration-175 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-neon/40 disabled:opacity-50 dark:bg-neon">
               {flagging ? '…' : 'Flag'}
             </button>
           </div>
           {flagMsg && <div className="mt-1 text-xs">{flagMsg}</div>}
-          <div className="mt-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             {flags.data ? `${flags.data.n_flags} flag(s) on this entity` : '…'}
             {flags.data?.flags.map((f) => (
               <div key={f.id}>#{f.id} [{f.status}] {f.note} · {f.flagged_at}</div>
@@ -257,14 +264,14 @@ function EntityDrawer({ row, dimension, onClose }: { row: LossRow; dimension: st
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={exportEntity} className="rounded border border-slate-300 px-3 py-1.5 font-semibold transition-all duration-175 hover:shadow dark:border-slate-600">
+          <button onClick={exportEntity} className="h-9 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold shadow-sm transition-all duration-175 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:border-slate-700 dark:hover:bg-navyCardHover">
             Export to Sales Team (CSV)
           </button>
-          <button onClick={printPDF} className="rounded border border-slate-300 px-3 py-1.5 font-semibold transition-all duration-175 hover:shadow dark:border-slate-600">
+          <button onClick={printPDF} className="h-9 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold shadow-sm transition-all duration-175 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:border-slate-700 dark:hover:bg-navyCardHover">
             Export to Sales Team (PDF)
           </button>
         </div>
-        <div className="text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+        <div className="text-xs text-slate-500 dark:text-slate-400">
           Rule-based suggestions only (fixed text per tag, no forecasts or savings estimates) — plus measured tags,
           Flag and Export (D27).
         </div>
@@ -288,12 +295,12 @@ function CostTable({ row }: { row: LossRow }) {
         {rows.map(([k, v]) => (
           <tr key={k} className="border-t border-slate-100 dark:border-slate-700">
             <td className="py-1 text-slate-500 dark:text-slate-400">{k}</td>
-            <td className={`py-1 text-right font-mono ${k === 'Net' && v < 0 ? 'font-bold text-neg' : ''}`}>{money(v)}</td>
+            <td className={`py-1 text-right font-mono tabular-nums ${k === 'Net' && v < 0 ? 'font-bold text-neg' : ''}`}>{money(v)}</td>
           </tr>
         ))}
         <tr className="border-t border-slate-100 dark:border-slate-700">
           <td className="py-1 text-slate-500 dark:text-slate-400">Net %</td>
-          <td className="py-1 text-right font-mono">{pct(row.net_pct)}</td>
+          <td className="py-1 text-right font-mono tabular-nums">{pct(row.net_pct)}</td>
         </tr>
       </tbody>
     </table>
@@ -311,17 +318,17 @@ function ParetoCard({ rows }: { rows: LossRow[] }) {
     <Card title="Loss-maker Pareto — cumulative share of loss (worst-first, D24)">
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={Math.max(0, Math.floor(data.length / 10))} angle={-30} dy={10} height={60} />
-          <YAxis yAxisId="n" tickFormatter={(v: number) => money(v)} width={70} />
-          <YAxis yAxisId="c" orientation="right" domain={[0, 100]} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
-          <Tooltip formatter={(v, name) => (name === 'cumPct' ? `${Number(v).toFixed(1)}%` : money(Number(v)))} />
-          <Legend />
+          <CartesianGrid {...GRID_PROPS} />
+          <XAxis dataKey="name" tick={TICK_PROPS} {...AXIS_PROPS} interval={Math.max(0, Math.floor(data.length / 10))} angle={-30} dy={10} height={60} minTickGap={8} />
+          <YAxis yAxisId="n" tickFormatter={(v: number) => money(v)} width={70} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+          <YAxis yAxisId="c" orientation="right" domain={[0, 100]} tickFormatter={(v: number) => `${v.toFixed(0)}%`} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+          <Tooltip content={<ChartTooltip formatter={(v, name) => (name === 'Cumulative % of loss' ? `${Number(v).toFixed(1)}%` : money(Number(v)))} />} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
           <Bar yAxisId="n" dataKey="net" name="Net $" fill="#EF4444" />
           <Line yAxisId="c" type="monotone" dataKey="cumPct" name="Cumulative % of loss" stroke="#3B82F6" strokeWidth={2} dot={false} />
         </ComposedChart>
       </ResponsiveContainer>
-      <div className="mt-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
         Computed client-side from the live /loss-makers net $ values above (worst-first); cumulative % reaches 100% at
         the last bar. No new endpoint (D24).
       </div>
@@ -342,10 +349,10 @@ function DistributionCard({ rows }: { rows: LossRow[] }) {
     <Card title="Root-cause distribution — tag counts across these loss-makers (D25)">
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={dist} layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis type="number" allowDecimals={false} />
-          <YAxis type="category" dataKey="key" width={130} tickFormatter={(k: string) => TAG_LABEL[k] ?? k} tick={{ fontSize: 11 }} />
-          <Tooltip formatter={(v) => [`${v} entities`, 'Count']} labelFormatter={(k) => TAG_LABEL[String(k)] ?? String(k)} />
+          <CartesianGrid {...GRID_PROPS} />
+          <XAxis type="number" allowDecimals={false} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+          <YAxis type="category" dataKey="key" width={130} tickFormatter={(k: string) => TAG_LABEL[k] ?? k} tick={TICK_PROPS} {...AXIS_PROPS} />
+          <Tooltip content={<ChartTooltip formatter={(v) => `${v} entities`} labelFormatter={(k) => TAG_LABEL[String(k)] ?? String(k)} />} />
           <Bar dataKey="count" name="Entities">
             {dist.map((d) => (
               <Cell key={d.key} fill={d.key === 'none' ? '#64748b' : '#f59e0b'} />
@@ -353,7 +360,7 @@ function DistributionCard({ rows }: { rows: LossRow[] }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      <div className="mt-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
         Counts tag keys from the live rows above (one entity can carry multiple tags, so counts can exceed {rows.length});
         thresholds are quartile-derived per D12. No new endpoint (D25).
       </div>

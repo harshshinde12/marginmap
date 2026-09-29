@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Bar,
@@ -19,7 +20,7 @@ import { BAND_ORDER_HELPER } from '../api-helpers';
 import { clampShift, rankTornado } from '../addon-helpers';
 import { api as backend } from '../api';
 import type { ElasticityRow, SimResult } from '../api';
-import { Card, ErrorBlock, LoadingBlock, downloadCSV, money, pct } from '../components';
+import { Card, ErrorBlock, ChartSkeleton, AXIS_PROPS, ChartTooltip, COST_COLORS, GRID_PROPS, REF_LINE_PROPS, SELECT_CLASS, TICK_PROPS, downloadCSV, money, pct } from '../components';
 
 const DIMS = ['product', 'customer', 'segment', 'category', 'region'];
 
@@ -84,24 +85,24 @@ export function Simulator({
   return (
     <div className="space-y-4">
       {initial && (
-        <div className="rounded-xl border border-neon/40 bg-blue-50 p-3 text-sm dark:bg-blue-950">
+        <div className="rounded-xl border border-neon/30 bg-blue-50/70 p-3 text-sm dark:border-neon/30 dark:bg-neon/5">
           Pre-loaded from Loss-Maker Alerts: <strong>{initial.entityId}</strong> ({initial.dimension}). Adjust the
           sliders and re-run — every number below comes from the live /simulate response.
         </div>
       )}
       <Card title="Pricing simulator">
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-sm">
+          <label className="text-sm font-medium">
             Dimension
-            <select value={dimension} onChange={(e) => setDimension(e.target.value)} className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 dark:border-slate-600 dark:bg-slate-900">
+            <select value={dimension} onChange={(e) => setDimension(e.target.value)} className={`${SELECT_CLASS} mt-1 w-full`}>
               {DIMS.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
           </label>
-          <label className="text-sm">
+          <label className="text-sm font-medium">
             Entity ID
-            <input value={entityId} onChange={(e) => setEntityId(e.target.value)} className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 dark:border-slate-600 dark:bg-slate-900" placeholder="e.g. TEC-MA-10000418" />
+            <input value={entityId} onChange={(e) => setEntityId(e.target.value)} className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm shadow-sm transition-all duration-175 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:border-slate-700 dark:bg-navyCard dark:text-slate-100" placeholder="e.g. TEC-MA-10000418" />
           </label>
           <Slider label={`Discount Adjustment: ${discount}% (new absolute discount)`} min={0} max={85} step={1} value={discount} onChange={setDiscount} />
           <Slider label={`Price Change: ${priceAdj}% (−90…+200)`} min={-90} max={200} step={1} value={priceAdj} onChange={setPriceAdj} />
@@ -109,18 +110,18 @@ export function Simulator({
           <Slider label={`Shipping Cut: ${shipCut}% (−10…+90, negative = cost increase)`} min={-10} max={90} step={1} value={shipCut} onChange={setShipCut} />
           <Slider label={`Volume Elasticity Override: ${volOverride.toFixed(2)}x (1.0 = pure band elasticity)`} min={0.1} max={5} step={0.05} value={volOverride} onChange={setVolOverride} />
           <div className="flex flex-wrap items-end gap-2">
-            <button onClick={() => setPriceAdj(2)} className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold transition-all duration-175 hover:shadow dark:border-slate-600" title="Set Price Change slider to +2%">
+            <button onClick={() => setPriceAdj(2)} className="h-9 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold shadow-sm transition-all duration-175 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:border-slate-700 dark:hover:bg-navyCardHover" title="Set Price Change slider to +2%">
               Conservative +2%
             </button>
-            <button onClick={() => setPriceAdj(5)} className="rounded border border-slate-300 px-3 py-2 text-sm font-semibold transition-all duration-175 hover:shadow dark:border-slate-600" title="Set Price Change slider to +5%">
+            <button onClick={() => setPriceAdj(5)} className="h-9 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold shadow-sm transition-all duration-175 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:border-slate-700 dark:hover:bg-navyCardHover" title="Set Price Change slider to +5%">
               Aggressive +5%
             </button>
-            <button onClick={() => sim.mutate()} className="rounded bg-ink px-4 py-2 text-sm font-semibold text-white transition-all duration-175 hover:shadow dark:bg-neon">
+            <button onClick={() => sim.mutate()} className="h-9 rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-175 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-neon/40 dark:bg-neon">
               Run simulation
             </button>
           </div>
         </div>
-        {sim.isPending && <LoadingBlock />}
+        {sim.isPending && <ChartSkeleton height={220} />}
         {sim.error && <ErrorBlock message={String(sim.error)} />}
         {sim.data && <ResultCards sim={sim.data} />}
         {sim.data && (
@@ -139,20 +140,20 @@ export function Simulator({
       </Card>
       <Card title="Elasticity-lite context — Technology bands (volume flat, contribution collapsing)">
         {bands.isLoading ? (
-          <LoadingBlock />
+          <ChartSkeleton height={260} />
         ) : bands.error || !bands.data ? (
           <ErrorBlock message={String(bands.error)} />
         ) : (
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={BAND_ORDER_HELPER(tech)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="band" />
-              <YAxis yAxisId="qty" tickFormatter={(v: number) => v.toFixed(1)} />
-              <YAxis yAxisId="pct" orientation="right" tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`} />
-              <Tooltip />
-              <Legend />
-              <Bar yAxisId="qty" dataKey="avg_qty" name="Avg qty" fill="#3B82F6" />
-              <Line yAxisId="pct" type="monotone" dataKey="contribution_pct" name="Contribution %" stroke="#EF4444" strokeWidth={2} />
+              <CartesianGrid {...GRID_PROPS} />
+              <XAxis dataKey="band" tick={TICK_PROPS} {...AXIS_PROPS} />
+              <YAxis yAxisId="qty" tickFormatter={(v: number) => v.toFixed(1)} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+              <YAxis yAxisId="pct" orientation="right" tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+              <Tooltip content={<ChartTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar yAxisId="qty" dataKey="avg_qty" name="Avg qty" fill={COST_COLORS.freight} />
+              <Line yAxisId="pct" type="monotone" dataKey="contribution_pct" name="Contribution %" stroke="#EF4444" strokeWidth={2} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         )}
@@ -162,10 +163,20 @@ export function Simulator({
 }
 
 function Slider({ label, min, max, step, value, onChange }: { label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void }) {
+  const fill = ((value - min) / Math.max(max - min, 1e-9)) * 100;
   return (
-    <label className="text-sm">
+    <label className="text-sm font-medium">
       {label}
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="mt-1 w-full" />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-1.5 w-full"
+        style={{ '--fill': `${fill}%` } as CSSProperties}
+      />
     </label>
   );
 }
@@ -208,26 +219,26 @@ function ResultCards({ sim }: { sim: SimResult }) {
     <div className="mt-3 space-y-3">
       <div className="grid gap-3 md:grid-cols-3">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-175 hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-700 dark:bg-slate-900">
-            <div className="font-display text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">{c.label}</div>
-            <div className={`mt-1 font-display text-2xl font-bold ${c.good ? 'text-pos' : 'text-neg'}`}>{c.value}</div>
-            <div className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">{c.delta}</div>
-            <div className="mt-1 text-[11px] text-slate-400 dark:text-[13px]">{c.sub}</div>
+          <div key={c.label} className="rounded-xl border border-black/5 bg-white p-4 shadow-card dark:border-white/5 dark:bg-navyCard">
+            <div className="font-display text-xs font-semibold uppercase tracking-widest opacity-60 text-slate-500 dark:text-slate-300">{c.label}</div>
+            <div className={`mt-1 font-display text-2xl font-bold tabular-nums ${c.good ? 'text-pos' : 'text-neg'}`}>{c.value}</div>
+            <div className="mt-1 font-mono text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">{c.delta}</div>
+            <div className="mt-1 text-xs text-slate-400">{c.sub}</div>
           </div>
         ))}
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <ComposedChart data={cmp} layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis type="number" tickFormatter={(v: number) => money(v)} />
-          <YAxis type="category" dataKey="name" width={110} />
-          <Tooltip formatter={(v) => (typeof v === 'number' ? money(v) : v)} />
-          <Legend />
-          <Bar dataKey="baseline" name="Baseline" fill="#64748b" />
-          <Bar dataKey="projected" name="Simulated" fill="#3B82F6" />
+          <CartesianGrid {...GRID_PROPS} />
+          <XAxis type="number" tickFormatter={(v: number) => money(v)} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+          <YAxis type="category" dataKey="name" width={110} tick={TICK_PROPS} {...AXIS_PROPS} />
+          <Tooltip content={<ChartTooltip formatter={(v) => money(Number(v))} />} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Bar dataKey="baseline" name="Baseline" fill={COST_COLORS.baseline} />
+          <Bar dataKey="projected" name="Simulated" fill={COST_COLORS.simulated} />
         </ComposedChart>
       </ResponsiveContainer>
-      <div className="text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">{sim.assumption_note}</div>
+      <div className="text-xs text-slate-500 dark:text-slate-400">{sim.assumption_note}</div>
     </div>
   );
 }
@@ -331,21 +342,21 @@ function TornadoCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   return (
-    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-900">
+    <div className="mt-3 rounded-xl border border-black/5 bg-slate-50/60 p-3 dark:border-white/5 dark:bg-white/[0.02]">
       <h4 className="text-sm font-semibold">
         Sensitivity tornado — deltas vs current slider scenario ({money(scenarioContrib)}) (live /simulate, D22/D26)
       </h4>
       {!rows ? (
-        <LoadingBlock />
+        <ChartSkeleton height={240} />
       ) : (
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={rows} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" tickFormatter={(v: number) => money(v)} />
-            <YAxis type="category" dataKey="lever" width={150} tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v) => (v === null || v === undefined ? 'failed / n/a' : money(Number(v)))} />
-            <ReferenceLine x={0} stroke="#0f172a" />
-            <Legend />
+            <CartesianGrid {...GRID_PROPS} />
+            <XAxis type="number" tickFormatter={(v: number) => money(v)} tick={TICK_PROPS} {...AXIS_PROPS} tickCount={5} />
+            <YAxis type="category" dataKey="lever" width={150} tick={TICK_PROPS} {...AXIS_PROPS} />
+            <Tooltip content={<ChartTooltip formatter={(v) => (v === null || v === undefined || v === '' ? 'failed / n/a' : money(Number(v)))} />} />
+            <ReferenceLine x={0} {...REF_LINE_PROPS} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
             <Bar dataKey="down" name="Down shift" fill="#EF4444" />
             <Bar dataKey="up" name="Up shift" fill="#10B981">
               {rows.map((r) => (
@@ -355,7 +366,7 @@ function TornadoCard({
           </BarChart>
         </ResponsiveContainer>
       )}
-      <div className="mt-1 text-xs text-slate-500 dark:text-[13px] dark:text-slate-400">
+      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
         Baseline: current slider scenario projection ({money(scenarioContrib)} contribution) — not the historical
         baseline ({money(historyContrib)}). Each lever shifted independently while the other sliders stay at their
         current values; ranked by absolute contribution delta.
