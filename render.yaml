@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: marginmap-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: MARGINMAP_SUPPORT_RATE_PCT
+        value: 0.05

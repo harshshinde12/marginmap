@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-paper text-ink font-body;
+}
+
+.dark body,
+.dark {
+  color-scheme: dark;
+}
+
+.dark #root {
+  @apply bg-navy text-slate-100;
+}
+
+/* 150-200ms hover transitions on interactive rows (D1) */
+.row-hover {
+  @apply transition-all duration-175 hover:-translate-y-px hover:shadow-md;
+}
+
+@media print {
+  aside, .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

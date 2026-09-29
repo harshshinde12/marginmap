@@ -1,0 +1,39 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+env/
+*.egg-info/
+
+# ---- Node / frontend build output ----
+node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+yarn-error.log*
+
+# ---- env / secrets (see frontend/.env.example for required names) ----
+.env
+.env.local
+*.env
+
+# ---- editors / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- logs ----
+*.log
+
+# ---- data: built artifacts are regenerable, raw source is committed ----
+# data/marginmap.db is rebuilt by `python -m app.ingest` (from backend/).
+data/*.db
+# NOTE: data/superstore.xlsx (raw dataset, ~8 MB) is intentionally COMMITTED:
+# without it a fresh clone cannot build the database.
+# Small data/*.csv / *.tsv / *.geojson companions are committed too (tiny, possible provenance value).
+
+# ---- documents ----
+*.pdf
